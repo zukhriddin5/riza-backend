@@ -1,0 +1,126 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  name        String      // Uzbek name (default locale; used for slug + order snapshots)
+  nameRu      String      @default("") // Russian name
+  slug        String      @unique // NEW — the pretty URL, unique per product
+  description String?     // Uzbek description
+  descriptionRu String?   // Russian description
+  price       Int
+  stock       Int         @default(0)
+  imageUrl    String?     // cover image (shown in listings, cart, admin)
+  images      String[]    @default([]) // extra gallery images for the detail page
+  rating      Float       @default(0)
+  isActive    Boolean     @default(true)
+  categories  Category[] // NEW — a product has many categories
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String    @unique // Uzbek name (default locale; used for slug)
+  nameRu    String    @default("") // Russian name
+  slug      String    @unique // "sofa", "door" — for category URLs
+  products  Product[] // NEW — a category has many products
+  createdAt DateTime  @default(now())
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  name      String?
+  role      Role      @default(CUSTOMER)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  orders    Order[]
+  addresses Address[]
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+model Order {
+  id     String      @id @default(uuid())
+  user   User        @relation(fields: [userId], references: [id])
+  userId String
+  items  OrderItem[]
+  status         OrderStatus   @default(PENDING)   // fulfillment: PENDING → DELIVERED
+  paymentStatus  PaymentStatus @default(UNPAID)  
+
+  // shipping address — snapshot the fields so the order is a permanent record,
+  // AND link to the saved Address for reference.
+  address      Address? @relation(fields: [addressId], references: [id])
+  addressId    String?
+  shipFullName String
+  shipStreet   String
+  shipCity     String
+  shipPhone    String
+  shipCountry  String
+
+  paymentMethod PaymentMethod
+  itemsTotal    Int // items subtotal, cents
+  shipping      Int // shipping fee, cents
+  tax           Int           @default(0) // cents; 0 for now
+  total         Int // itemsTotal + shipping + tax
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+enum PaymentMethod {
+  CARD
+  CASH
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  name      String // product name snapshot
+  price     Int // unit price snapshot (cents)
+  quantity  Int
+}
+
+enum OrderStatus {
+  PENDING // created, not yet paid
+  PAID // payment received
+  DELIVERED // fulfilled
+  CANCELLED
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  fullName  String
+  street    String
+  city      String
+  phone     String
+  country   String
+  createdAt DateTime @default(now())
+  orders    Order[] // orders that used this address
+}
+enum PaymentStatus {
+  UNPAID
+  PAID
+}
