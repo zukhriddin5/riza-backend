@@ -19,11 +19,13 @@ async function bootstrap() {
     }),
   );
 
-  // Allow the browser frontend (on port 3001) to call this API.
-  // Without this, cross-origin requests from the browser are blocked.
+  // Allow the browser frontend to call this API. In production set FRONTEND_URL
+  // to your deployed frontend origin (e.g. https://riza.vercel.app); locally it
+  // falls back to the dev server on :3001.
   app.enableCors({
-    origin: 'http://localhost:3001', // only allow OUR frontend, not the whole internet
-    credentials: true,      // allow auth headers/cookies through
+    origin: process.env.FRONTEND_URL ?? 'http://localhost:3001',
+    credentials: true, // allow auth headers/cookies through
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   app.enableShutdownHooks();
