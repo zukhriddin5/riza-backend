@@ -1,98 +1,122 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# RIZA E-Commerce — Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+REST API for the RIZA furniture store: products, categories, orders, authentication, an admin panel, image uploads, and full bilingual (Uzbek / Russian) content.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Built with **NestJS 11**, **Prisma 7**, and **PostgreSQL**. Pairs with the [RIZA frontend](../riza-frontend).
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Tech stack
 
-## Project setup
+| Area | Tech |
+|------|------|
+| Framework | NestJS 11 (TypeScript, CommonJS) |
+| Database | PostgreSQL (Neon) via Prisma 7 + `@prisma/adapter-pg` |
+| Auth | JWT (`@nestjs/jwt`, Passport) + role-based guards |
+| File storage | Cloudflare R2 / S3-compatible (`@aws-sdk/client-s3`) or local disk |
+| Images | `sharp` (resize + WebP compression) |
+| Validation | `class-validator` / `class-transformer` (global `ValidationPipe`) |
 
+## Features
+
+- **Products & categories** — full CRUD, unique server-generated slugs, many-to-many links.
+- **Bilingual content** — every product/category stores Uzbek + Russian; storefront endpoints localize by `?lang=` with fallback.
+- **Orders** — checkout with server-authoritative pricing, stock management, cancel/restock, admin mark-paid / mark-delivered.
+- **Auth** — customers by phone, admins by email; JWT tokens, password reset.
+- **Admin** — role-guarded endpoints for products, categories, orders, admins, and dashboard stats (monthly revenue, top sellers).
+- **Image uploads** — ADMIN-only endpoint; images resized to ≤1200 px WebP and stored in R2 (prod) or local disk (dev).
+
+## Money & rules
+
+- All prices are **integer cents** (e.g. `59999` = \$599.99).
+- The **server is authoritative** for prices, totals, shipping, and the buyer's identity (from the JWT, never the request body).
+- Orders are immutable records; order items snapshot name/price at purchase time.
+
+---
+
+## Getting started
+
+### Prerequisites
+- Node.js 20+
+- A PostgreSQL database (e.g. a free [Neon](https://neon.tech) project)
+
+### 1. Install
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
-
+### 2. Configure environment
+Copy the example and fill in your values:
 ```bash
-# development
-$ npm run start
+cp .env.example .env
+```
+See **Environment variables** below.
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+### 3. Set up the database
+```bash
+npx prisma migrate dev     # apply migrations
+npx prisma generate        # generate the client (also runs on postinstall)
 ```
 
-## Run tests
-
+### 4. Run
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run start:dev          # watch mode, http://localhost:3000
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Environment variables
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string (Neon) |
+| `JWT_SECRET` | Long random string for signing tokens |
+| `JWT_EXPIRES_IN` | Token lifetime, e.g. `1d` |
+| `FREE_SHIPPING_THRESHOLD` | Cents; orders ≥ this ship free (e.g. `50000`) |
+| `SHIPPING_FEE` | Cents; flat fee below the threshold (e.g. `5000`) |
+| `ADMIN_TELEGRAM` / `ADMIN_CARD_NUMBER` | Shown at checkout for card payments |
+| `FRONTEND_URL` | Allowed CORS origin (your deployed frontend) |
+| `STORAGE_DRIVER` | `local` (dev) or `s3` (prod) |
+| `APP_URL` | Public URL of this API (for local image URLs) |
+| `S3_ENDPOINT` `S3_REGION` `S3_BUCKET` `S3_ACCESS_KEY_ID` `S3_SECRET_ACCESS_KEY` `S3_PUBLIC_URL` | S3-compatible storage (R2/Spaces/S3), used when `STORAGE_DRIVER=s3` |
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+## Scripts
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+| Script | Purpose |
+|--------|---------|
+| `npm run start:dev` | Dev server (watch) |
+| `npm run build` | Compile to `dist/` |
+| `npm run start:prod` | Run compiled app (`node dist/src/main`) |
+| `npm run seed` | Seed sample data |
+| `npm run lint` / `npm test` | Lint / unit tests |
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## API overview
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Public (storefront):
+- `GET /categories/home-feed?lang=` — everything the home page needs in one call
+- `GET /categories/:slug?lang=` — a category + its products
+- `GET /products/all?lang=` — all active products (newest first)
+- `GET /products/slug/:slug?lang=` — product detail
+- `POST /users` — customer sign-up (phone) · `POST /auth/login` · `POST /auth/reset-password`
 
-## Support
+Authenticated:
+- `GET /auth/me` · `POST /orders` · `GET /orders/mine` · `DELETE /orders/:id`
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Admin (role-guarded):
+- `GET /orders` · `PATCH /orders/:id/pay` · `PATCH /orders/:id/deliver`
+- `POST/PATCH/DELETE /products` · `POST/PATCH/DELETE /categories`
+- `POST /uploads/image` · `GET /stats/dashboard`
+- `POST /users/admins` · `GET/PATCH/DELETE /users/admins/:id`
 
-## Stay in touch
+---
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Deployment (DigitalOcean App Platform)
 
-## License
+- **Build command:** `npm install && npm run build`
+- **Run command:** `npm run start:prod`
+- Set all env vars in the dashboard (with `STORAGE_DRIVER=s3` + R2 keys, and `FRONTEND_URL` = your deployed frontend).
+- The Neon database is migrated with `prisma migrate deploy`.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+> Note: the entry point compiles to `dist/src/main.js` (because of imports outside `src/`), which is why `start:prod` runs `node dist/src/main`.
